@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>福壽康寧：銀髮樂齡健腦遊戲</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Noto Serif TC', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* 16:9 Responsive Canvas Container */
+        .canvas-16-9-box {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            aspect-ratio: 16 / 9;
+            margin: 0 auto;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(251, 191, 36, 0.4);
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        /* Senior Friendly Big Glowing Buttons */
+        .senior-btn {
+            transition: all 0.2s ease-out;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .senior-btn:hover, .senior-btn:focus {
+            transform: scale(1.05);
+            filter: brightness(1.15);
+        }
+
+        .senior-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* High Contrast Glass Panels */
+        .senior-card {
+            background: rgba(30, 41, 59, 0.92);
+            backdrop-filter: blur(10px);
+            border: 3px solid rgba(251, 191, 36, 0.5);
+        }
+
+        /* Floating Animation */
+        @keyframes gentlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+
+        .pulse-gentle {
+            animation: gentlePulse 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between items-center p-2 sm:p-4 bg-slate-950 text-slate-100">
+
+    <header class="w-full max-w-6xl flex flex-wrap justify-between items-center gap-3 mb-2 px-3 py-2 bg-slate-900/90 rounded-2xl border-2 border-amber-500/30">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-red-500 flex items-center justify-center text-white text-2xl shadow-lg">
+                <i class="fa-solid fa-heart-pulse"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-black text-amber-300 tracking-wide">
+                    福壽康寧 <span class="text-base sm:text-lg font-bold text-slate-300">銀髮健腦遊戲</span>
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-400 font-medium">簡單歡樂 · 認知鍛鍊 · 放鬆心情</p>
+            </div>
+        </div>
+
+        <!-- Accessible Top Controls -->
+        <div class="flex items-center gap-3 sm:gap-6">
+            <div class="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+                <i class="fa-solid fa-star text-amber-400 text-xl sm:text-2xl"></i>
+                <span class="text-slate-300 text-base sm:text-lg font-bold">獲得星星:</span>
+                <span id="starScoreText" class="text-amber-300 text-2xl sm:text-3xl font-black">0</span>
+            </div>
+
+            <!-- Voice Reading Toggle -->
+            <button id="ttsToggleBtn" class="senior-btn bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 rounded-xl font-black text-sm sm:text-base flex items-center gap-2">
+                <i id="ttsIcon" class="fa-solid fa-volume-high text-xl"></i>
+                <span id="ttsText">語音：開啟</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-6xl flex-1 flex flex-col justify-center items-center my-1">
+        <div class="canvas-16-9-box">
+            <!-- 16:9 Interactive Canvas -->
+            <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+            <!-- On-Canvas Senior Interactive UI Overlay -->
+            <div id="uiOverlay" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-8">
+                <!-- Top Instruction Banner (Extra Large Text) -->
+                <div class="flex justify-center pointer-events-auto">
+                    <div id="instructionBanner" class="senior-card px-8 py-3 rounded-2xl text-center shadow-2xl border-2 border-amber-400/70">
+                        <span class="text-amber-300 text-xl sm:text-3xl font-black tracking-wide">
+                            👈 請點選和左邊「<span id="targetNameText" class="text-emerald-300 underline">壽桃</span>」一模一樣的圖案！
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Center Display & Card Interactive Region -->
+                <div id="cardsContainer" class="flex justify-center items-center gap-6 sm:gap-10 my-auto pointer-events-auto">
+                    <!-- Cards will be populated dynamically or drawn on canvas -->
+                </div>
+
+                <!-- Bottom Helper Actions -->
+                <div class="flex justify-between items-center pointer-events-auto">
+                    <button id="readQuestionBtn" class="senior-btn bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-2xl text-base sm:text-xl flex items-center gap-2 border-2 border-indigo-300">
+                        <i class="fa-solid fa-circle-play text-2xl"></i> 再唸一次題目
+                    </button>
+
+                    <button id="nextQuestionBtn" class="senior-btn bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-2xl text-base sm:text-xl flex items-center gap-2 border-2 border-emerald-300">
+                        下一題 <i class="fa-solid fa-arrow-right text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Start / Celebration Modal -->
+            <div id="gameModal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 transition-all duration-300">
+                <div class="max-w-xl bg-slate-900 p-8 rounded-3xl border-4 border-amber-400 shadow-2xl">
+                    <div class="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-tr from-amber-400 to-red-500 flex items-center justify-center text-5xl text-white shadow-lg pulse-gentle">
+                        <i class="fa-solid fa-sun"></i>
+                    </div>
+                    <h2 id="modalTitle" class="text-3xl sm:text-4xl font-black text-amber-300 mb-3">歡迎來玩「福壽康寧」！</h2>
+                    <p id="modalDesc" class="text-lg sm:text-xl text-slate-200 mb-8 leading-relaxed font-medium">
+                        這個遊戲完全沒有時間限制，請放鬆心情，觀察圖案，動動手、動動腦！
+                    </p>
+                    <button id="modalStartBtn" class="senior-btn bg-gradient-to-r from-amber-500 to-red-500 text-slate-950 px-10 py-4 rounded-2xl text-2xl font-black shadow-xl tracking-wider flex items-center gap-3 mx-auto">
+                        <i class="fa-solid fa-circle-play text-3xl"></i> 開始開心玩
+                    </button>
+                </div>
+            </div>
+
+            <!-- Gentle Positive Toast Message -->
+            <div id="toastMessage" class="absolute top-24 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-black px-8 py-4 rounded-3xl text-2xl sm:text-3xl shadow-2xl transition-all duration-300 opacity-0 transform -translate-y-6 pointer-events-none z-30 border-4 border-white flex items-center gap-3">
+                <i id="toastIcon" class="fa-solid fa-thumbs-up text-red-600"></i>
+                <span id="toastText">答對了！真厲害！</span>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-6xl flex justify-between items-center text-slate-400 text-sm sm:text-base px-3 py-1">
+        <div><i class="fa-solid fa-hands-holding-circle text-amber-400 mr-1"></i>適合長者：樂齡防失智 · 視覺專注與認知活化</div>
+        <div>大字體 · 語音朗讀 · 無時間壓力</div>
+    </footer>
+
+    <script>
+        // Web Audio Synthesizer & SpeechSynthesis Integration
+        class SeniorAudioEngine {
+            constructor() {
+                this.audioCtx = null;
+                this.speechEnabled = true;
+                this.synth = window.speechSynthesis || null;
+            }
+
+            init() {
+                if (!this.audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioCtx = new AudioContext();
+                }
+            }
+
+            playTone(freq, type = 'sine', duration = 0.2, gainVal = 0.15) {
+                if (!this.audioCtx) return;
+                try {
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(gainVal, this.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start();
+                    osc.stop(this.audioCtx.currentTime + duration);
+                } catch(e) {}
+            }
+
+            playSuccessSound() {
+                // Happy major arpeggio
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'sine', 0.3, 0.15), i * 100);
+                });
+            }
+
+            playClickSound() {
+                this.playTone(440, 'triangle', 0.1, 0.1);
+            }
+
+            speakText(text) {
+                if (!this.speechEnabled || !this.synth) return;
+                try {
+                    this.synth.cancel(); // Stop prior speech
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'zh-TW';
+                    utterance.rate = 0.85; // Slightly slower, clear speed for seniors
+                    utterance.pitch = 1.0;
+                    this.synth.speak(utterance);
+                } catch(e) {}
+            }
+        }
+
+        const audio = new SeniorAudioEngine();
+
+        const GAME_ITEMS = [
+            { id: "桃", name: "壽桃", icon: "fa-apple-whole", color: "#f43f5e", bg: "#ffe4e6", desc: "吉祥壽桃" },
+            { id: "桔", name: "大吉金桔", icon: "fa-lemon", color: "#f59e0b", bg: "#fef3c7", desc: "金黃吉利" },
+            { id: "花", name: "富貴牡丹", icon: "fa-fan", color: "#ec4899", bg: "#fce7f3", desc: "花開富貴" },
+            { id: "竹", name: "平安竹子", icon: "fa-vihara", color: "#10b981", bg: "#d1fae5", desc: "竹報平安" },
+            { id: "蘋", name: "平平安安蘋", icon: "fa-apple-whole", color: "#ef4444", bg: "#fee2e2", desc: "平平安安" },
+            { id: "日", name: "溫暖太陽", icon: "fa-sun", color: "#f97316", bg: "#ffedd5", desc: "旭日東升" },
+            { id: "魚", name: "年年有餘錦鯉", icon: "fa-fish", color: "#ea580c", bg: "#ffedd5", desc: "年年有餘" },
+            { id: "喜", name: "喜氣雙喜", icon: "fa-face-laugh-beam", color: "#e11d48", bg: "#ffe4e6", desc: "喜氣洋洋" }
+        ];
+
+        class SeniorCanvasRenderer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.petals = [];
+                this.time = 0;
+                this.initPetals();
+            }
+
+            initPetals() {
+                for (let i = 0; i < 25; i++) {
+                    this.petals.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        radius: Math.random() * 8 + 6,
+                        speedX: Math.random() * 1.5 - 0.75,
+                        speedY: Math.random() * 1 + 0.5,
+                        color: Math.random() > 0.5 ? '#fbcfe8' : '#fde68a',
+                        angle: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            spawnCelebrationFireworks(x, y) {
+                for (let i = 0; i < 40; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 6 + 2;
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 1,
+                        radius: Math.random() * 6 + 4,
+                        alpha: 1,
+                        color: ['#fbbf24', '#f43f5e', '#34d399', '#60a5fa', '#a78bfa'][Math.floor(Math.random() * 5)],
+                        decay: Math.random() * 0.02 + 0.015
+                    });
+                }
+            }
+
+            updateAndDraw() {
+                this.time += 0.02;
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                // Relaxing Warm Background Gradient
+                const bgGrad = ctx.createRadialGradient(w/2, h/2, 100, w/2, h/2, 700);
+                bgGrad.addColorStop(0, '#1e293b');
+                bgGrad.addColorStop(1, '#0f172a');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, w, h);
+
+                // Draw Falling Petals Animation
+                ctx.save();
+                this.petals.forEach(p => {
+                    p.x += p.speedX + Math.sin(this.time + p.angle) * 0.5;
+                    p.y += p.speedY;
+                    p.angle += 0.02;
+
+                    if (p.y > h + 20) {
+                        p.y = -20;
+                        p.x = Math.random() * w;
+                    }
+
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.ellipse(p.x, p.y, p.radius, p.radius * 0.6, p.angle, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+
+                // Draw Celebration Fireworks Particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha -= p.decay;
+
+                    if (p.alpha <= 0) {
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        class SeniorGameController {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.renderer = new SeniorCanvasRenderer(this.canvas);
+                this.stars = 0;
+                this.targetItem = null;
+                this.options = [];
+
+                this.setupEventListeners();
+                this.startAnimationLoop();
+            }
+
+            setupEventListeners() {
+                document.getElementById('modalStartBtn').addEventListener('click', () => {
+                    audio.init();
+                    audio.playClickSound();
+                    document.getElementById('gameModal').classList.add('opacity-0', 'pointer-events-none');
+                    this.nextQuestion();
+                });
+
+                document.getElementById('ttsToggleBtn').addEventListener('click', () => {
+                    audio.speechEnabled = !audio.speechEnabled;
+                    const icon = document.getElementById('ttsIcon');
+                    const text = document.getElementById('ttsText');
+
+                    if (audio.speechEnabled) {
+                        icon.className = 'fa-solid fa-volume-high text-xl';
+                        text.innerText = '語音：開啟';
+                        audio.speakText('語音朗讀已開啟');
+                    } else {
+                        icon.className = 'fa-solid fa-volume-xmark text-xl text-slate-400';
+                        text.innerText = '語音：靜音';
+                    }
+                });
+
+                document.getElementById('readQuestionBtn').addEventListener('click', () => {
+                    audio.playClickSound();
+                    this.speakCurrentQuestion();
+                });
+
+                document.getElementById('nextQuestionBtn').addEventListener('click', () => {
+                    audio.playClickSound();
+                    this.nextQuestion();
+                });
+            }
+
+            nextQuestion() {
+                // Select a target item
+                const targetIdx = Math.floor(Math.random() * GAME_ITEMS.length);
+                this.targetItem = GAME_ITEMS[targetIdx];
+
+                // Prepare 3 large options (1 correct, 2 distractors)
+                const otherItems = GAME_ITEMS.filter(item => item.id !== this.targetItem.id);
+                const shuffledDistractors = [...otherItems].sort(() => Math.random() - 0.5).slice(0, 2);
+
+                this.options = [this.targetItem, ...shuffledDistractors].sort(() => Math.random() - 0.5);
+
+                this.renderCardsUI();
+                this.speakCurrentQuestion();
+            }
+
+            speakCurrentQuestion() {
+                if (this.targetItem) {
+                    const promptText = `請點選和左邊一模一樣的 ${this.targetItem.name}`;
+                    audio.speakText(promptText);
+                }
+            }
+
+            renderCardsUI() {
+                const container = document.getElementById('cardsContainer');
+                document.getElementById('targetNameText').innerText = this.targetItem.name;
+                container.innerHTML = '';
+
+                // Left Target Card Display (Big Reference Image)
+                const targetBox = document.createElement('div');
+                targetBox.className = "flex flex-col items-center bg-amber-500/20 border-4 border-amber-400 rounded-3xl p-4 sm:p-6 shadow-2xl pulse-gentle min-w-[160px] sm:min-w-[220px]";
+                targetBox.innerHTML = `
+                    <div class="text-sm sm:text-lg font-black text-amber-300 mb-2">🎯 目標圖案</div>
+                    <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl flex items-center justify-center text-4xl sm:text-6xl shadow-inner mb-2" style="background: ${this.targetItem.bg}; color: ${this.targetItem.color}">
+                        <i class="fa-solid ${this.targetItem.icon}"></i>
+                    </div>
+                    <span class="text-xl sm:text-2xl font-black text-slate-100">${this.targetItem.name}</span>
+                `;
+                container.appendChild(targetBox);
+
+                // Divider Symbol
+                const divider = document.createElement('div');
+                divider.className = "text-amber-400 text-3xl sm:text-5xl font-black hidden sm:block";
+                divider.innerHTML = '<i class="fa-solid fa-hand-point-right"></i>';
+                container.appendChild(divider);
+
+                // Right Interactive Choices
+                const optionsGrid = document.createElement('div');
+                optionsGrid.className = "flex flex-wrap sm:flex-nowrap justify-center gap-4 sm:gap-6";
+
+                this.options.forEach((opt) => {
+                    const cardBtn = document.createElement('button');
+                    cardBtn.className = "senior-btn senior-card rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center min-w-[140px] sm:min-w-[200px] border-4 cursor-pointer focus:outline-none focus:ring-4 focus:ring-amber-300";
+                    cardBtn.innerHTML = `
+                        <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl flex items-center justify-center text-4xl sm:text-6xl shadow-inner mb-3" style="background: ${opt.bg}; color: ${opt.color}">
+                            <i class="fa-solid ${opt.icon}"></i>
+                        </div>
+                        <span class="text-xl sm:text-2xl font-black text-slate-100">${opt.name}</span>
+                    `;
+
+                    cardBtn.addEventListener('click', (e) => this.handleCardClick(opt, e.currentTarget));
+                    optionsGrid.appendChild(cardBtn);
+                });
+
+                container.appendChild(optionsGrid);
+            }
+
+            handleCardClick(selectedOpt, btnElement) {
+                if (selectedOpt.id === this.targetItem.id) {
+                    // Correct!
+                    audio.playSuccessSound();
+                    this.stars += 1;
+                    document.getElementById('starScoreText').innerText = this.stars;
+
+                    // Trigger fireworks at center screen
+                    this.renderer.spawnCelebrationFireworks(640, 360);
+
+                    // Show visual encouragement
+                    this.showEncouragingToast("🎉 答對了！真厲害！大吉大利！");
+                    audio.speakText(`太棒了！這是 ${selectedOpt.name}，您答對了！`);
+
+                    // Next question after a peaceful pause
+                    setTimeout(() => this.nextQuestion(), 2400);
+                } else {
+                    // Friendly non-punishing feedback
+                    audio.playClickSound();
+                    btnElement.classList.add('opacity-50');
+                    this.showEncouragingToast("💡 沒關係，再仔細看看左邊喔！");
+                    audio.speakText(`沒關係，再看看左邊的 ${this.targetItem.name} 喔！`);
+                }
+            }
+
+            showEncouragingToast(msg) {
+                const toast = document.getElementById('toastMessage');
+                document.getElementById('toastText').innerText = msg;
+
+                toast.classList.remove('opacity-0', '-translate-y-6');
+                toast.classList.add('opacity-100', 'translate-y-0');
+
+                setTimeout(() => {
+                    toast.classList.remove('opacity-100', 'translate-y-0');
+                    toast.classList.add('opacity-0', '-translate-y-6');
+                }, 2200);
+            }
+
+            startAnimationLoop() {
+                const loop = () => {
+                    this.renderer.updateAndDraw();
+                    requestAnimationFrame(loop);
+                };
+                requestAnimationFrame(loop);
+            }
+        }
+
+        window.onload = function() {
+            window.seniorGame = new SeniorGameController();
+        };
+    </script>
+</body>
+</html>
